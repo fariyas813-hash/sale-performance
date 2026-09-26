@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Performance Analysis - BI Dashboard</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              800: '#0c4a6e',
+              900: '#082f49',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Chart.js & PapaParse for CSV processing -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.3);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.5);
+    }
+    .dark ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-area, #print-area * {
+        visibility: visible;
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white !important;
+        color: black !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-200">
+
+  <div class="flex h-screen overflow-hidden">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 transition-all duration-300 z-30 shadow-xl border-r border-slate-800">
+      <!-- Brand Logo / Title -->
+      <div class="p-5 flex items-center justify-between border-b border-slate-800">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md shadow-sky-500/30">
+            <i class="fa-solid fa-chart-line text-lg"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-white text-base tracking-wide leading-tight">SalesBI Suite</h1>
+            <span class="text-xs text-sky-400 font-medium tracking-wider uppercase">Analytics Engine</span>
+          </div>
+        </div>
+        <button id="sidebar-close-btn" class="md:hidden text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+        <p class="px-3 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Core Views</p>
+        <button onclick="switchPage('dashboard')" id="nav-dashboard" class="nav-item w-full flex items-center space-x-3 px-3.5 py-3 rounded-lg text-sm font-medium transition-all text-white bg-sky-600 shadow-md shadow-sky-900/40">
+          <i class="fa-solid fa-house w-5 text-center"></i>
+          <span>Dashboard</span>
+        </button>
+        <button onclick="switchPage('sales-analysis')" id="nav-sales-analysis" class="nav-item w-full flex items-center space-x-3 px-3.5 py-3 rounded-lg text-sm font-medium transition-all text-slate-400 hover:bg-slate-800 hover:text-white">
+          <i class="fa-solid fa-chart-simple w-5 text-center"></i>
+          <span>Sales Deep Dive</span>
+        </button>
+        <button onclick="switchPage('customer-analysis')" id="nav-customer-analysis" class="nav-item w-full flex items-center space-x-3 px-3.5 py-3 rounded-lg text-sm font-medium transition-all text-slate-400 hover:bg-slate-800 hover:text-white">
+          <i class="fa-solid fa-users w-5 text-center"></i>
+          <span>Customer Analysis</span>
+        </button>
+        <button onclick="switchPage('salesperson-analysis')" id="nav-salesperson-analysis" class="nav-item w-full flex items-center space-x-3 px-3.5 py-3 rounded-lg text-sm font-medium transition-all text-slate-400 hover:bg-slate-800 hover:text-white">
+          <i class="fa-solid fa-user-tie w-5 text-center"></i>
+          <span>Salesperson Matrix</span>
+        </button>
+
+        <p class="pt-5 px-3 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">System</p>
+        <button onclick="switchPage('data-view')" id="nav-data-view" class="nav-item w-full flex items-center space-x-3 px-3.5 py-3 rounded-lg text-sm font-medium transition-all text-slate-400 hover:bg-slate-800 hover:text-white">
+          <i class="fa-solid fa-database w-5 text-center"></i>
+          <span>Dataset & Upload</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer Badge -->
+      <div class="p-4 border-t border-slate-800 bg-slate-950/40">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs ring-1 ring-emerald-500/40">
+            BI
+          </div>
+          <div class="text-xs">
+            <p class="text-slate-200 font-semibold">Active Session</p>
+            <p class="text-slate-500" id="dataset-status-text">Sample Data Loaded</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Content Wrapper -->
+    <div class="flex-1 flex flex-col h-screen overflow-hidden">
+      <!-- Top Header Bar -->
+      <header class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700/60 px-6 flex items-center justify-between z-10 flex-shrink-0">
+        <div class="flex items-center space-x-4">
+          <button id="sidebar-toggle-btn" class="md:hidden text-slate-600 dark:text-slate-300 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <i class="fa-solid fa-bars text-lg"></i>
+          </button>
+          <div>
+            <h2 id="page-title" class="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Sales Performance Dashboard</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Executive Business Intelligence summary & KPIs</p>
+          </div>
+        </div>
+
+        <!-- Global Header Controls -->
+        <div class="flex items-center space-x-3">
+          <!-- Reset Filters -->
+          <button onclick="resetAllFilters()" title="Reset All Filters" class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/70 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-rotate-left text-xs"></i>
+            <span class="hidden sm:inline">Reset Filters</span>
+          </button>
+
+          <!-- Export Report to PDF -->
+          <button onclick="window.print()" title="Export Dashboard to PDF" class="px-3 py-1.5 text-xs font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900/60 rounded-lg transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-file-pdf text-red-500"></i>
+            <span class="hidden sm:inline">Export PDF</span>
+          </button>
+
+          <!-- Dark Mode Toggle -->
+          <button id="theme-toggle" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition" title="Toggle Theme">
+            <i id="theme-icon" class="fa-solid fa-moon"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Interactive Global BI Filter Bar (Sticky across views) -->
+      <section class="bg-white dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-700/60 px-6 py-3 shadow-xs z-10 flex-shrink-0">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center space-x-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <i class="fa-solid fa-filter text-sky-600 dark:text-sky-400"></i>
+            <span>Filters:</span>
+          </div>
+
+          <!-- Region Filter -->
+          <div class="flex items-center space-x-1">
+            <select id="filter-region" onchange="applyFilters()" class="text-xs bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+              <option value="ALL">Region: All</option>
+            </select>
+          </div>
+
+          <!-- Category Filter -->
+          <div class="flex items-center space-x-1">
+            <select id="filter-category" onchange="applyFilters()" class="text-xs bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+              <option value="ALL">Category: All</option>
+            </select>
+          </div>
+
+          <!-- Product Filter -->
+          <div class="flex items-center space-x-1">
+            <select id="filter-product" onchange="applyFilters()" class="text-xs bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+              <option value="ALL">Product: All</option>
+            </select>
+          </div>
+
+          <!-- Salesperson Filter -->
+          <div class="flex items-center space-x-1">
+            <select id="filter-salesperson" onchange="applyFilters()" class="text-xs bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+              <option value="ALL">Salesperson: All</option>
+            </select>
+          </div>
+
+          <!-- Date Quick Filter / Range -->
+          <div class="flex items-center space-x-1">
+            <select id="filter-date-period" onchange="applyFilters()" class="text-xs bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+              <option value="ALL">Timeframe: All Time</option>
+              <option value="2026-Q1">Q1 2026 (Jan-Mar)</option>
+              <option value="2026-Q2">Q2 2026 (Apr-Jun)</option>
+              <option value="2026-Q3">Q3 2026 (Jul-Sep)</option>
+            </select>
+          </div>
+
+          <!-- Active Filter Counter -->
+          <div id="filter-count-badge" class="ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+            Showing all 40 records
+          </div>
+        </div>
+      </section>
+
+      <!-- Scrollable Main Content Area -->
+      <main id="main-content" class="flex-1 overflow-y-auto p-6 space-y-6">
+
+        <!-- ==================== VIEW 1: DASHBOARD ==================== -->
+        <div id="view-dashboard" class="space-y-6">
+          <div id="print-area">
+            <!-- 5 Core KPI Summary Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <!-- KPI 1: Total Sales -->
+              <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:border-sky-400 transition">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Sales</span>
+                  <div class="w-8 h-8 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center text-sm font-bold">
+                    ₹
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <h3 id="kpi-total-sales" class="text-2xl font-extrabold text-slate-900 dark:text-white">₹0</h3>
+                  <div class="flex items-center mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <i class="fa-solid fa-arrow-trend-up mr-1"></i>
+                    <span id="kpi-sales-sub">Gross Revenue</span>
+                  </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-sky-500 transform scale-x-0 group-hover:scale-x-100 transition duration-300"></div>
+              </div>
+
+              <!-- KPI 2: Total Profit -->
+              <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:border-emerald-400 transition">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Profit</span>
+                  <div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-sm font-bold">
+                    <i class="fa-solid fa-chart-pie"></i>
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <h3 id="kpi-total-profit" class="text-2xl font-extrabold text-slate-900 dark:text-white">₹0</h3>
+                  <div class="flex items-center mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <i class="fa-solid fa-coins mr-1"></i>
+                    <span>Net Gain</span>
+                  </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 transform scale-x-0 group-hover:scale-x-100 transition duration-300"></div>
+              </div>
+
+              <!-- KPI 3: Total Orders -->
+              <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:border-violet-400 transition">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Orders</span>
+                  <div class="w-8 h-8 rounded-lg bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-400 flex items-center justify-center text-sm">
+                    <i class="fa-solid fa-receipt"></i>
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <h3 id="kpi-total-orders" class="text-2xl font-extrabold text-slate-900 dark:text-white">0</h3>
+                  <div class="flex items-center mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                    <i class="fa-solid fa-bag-shopping mr-1 text-violet-500"></i>
+                    <span>Processed Transactions</span>
+                  </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-violet-500 transform scale-x-0 group-hover:scale-x-100 transition duration-300"></div>
+              </div>
+
+              <!-- KPI 4: Units Sold -->
+              <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:border-amber-400 transition">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Units Sold</span>
+                  <div class="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center text-sm">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <h3 id="kpi-units-sold" class="text-2xl font-extrabold text-slate-900 dark:text-white">0</h3>
+                  <div class="flex items-center mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                    <i class="fa-solid fa-cube mr-1 text-amber-500"></i>
+                    <span>Items Delivered</span>
+                  </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-amber-500 transform scale-x-0 group-hover:scale-x-100 transition duration-300"></div>
+              </div>
+
+              <!-- KPI 5: Profit Margin -->
+              <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:border-rose-400 transition">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Profit Margin</span>
+                  <div class="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 flex items-center justify-center text-sm">
+                    <i class="fa-solid fa-percent"></i>
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <h3 id="kpi-profit-margin" class="text-2xl font-extrabold text-slate-900 dark:text-white">0.0%</h3>
+                  <div class="flex items-center mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <i class="fa-solid fa-chart-line mr-1"></i>
+                    <span>Margin on Sales</span>
+                  </div>
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-rose-500 transform scale-x-0 group-hover:scale-x-100 transition duration-300"></div>
+              </div>
+            </div>
+
+            <!-- Dashboard Charts Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+              <!-- Chart 1: Monthly Sales Trend (2 cols wide) -->
+              <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Monthly Sales Trend</h3>
+                    <p class="text-xs text-slate-400">Monthly Revenue trajectory over time (Line Chart)</p>
+                  </div>
+                  <span class="text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-700 rounded font-medium text-slate-600 dark:text-slate-300">Trendline</span>
+                </div>
+                <div class="relative flex-1 min-h-[260px]">
+                  <canvas id="chart-monthly-trend"></canvas>
+                </div>
+              </div>
+
+              <!-- Chart 2: Regional Distribution (Donut Chart) -->
+              <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Sales by Region</h3>
+                    <p class="text-xs text-slate-400">Geographic sales distribution</p>
+                  </div>
+                  <i class="fa-solid fa-map-location-dot text-slate-400"></i>
+                </div>
+                <div class="relative flex-1 min-h-[260px] flex items-center justify-center">
+                  <canvas id="chart-region-donut"></canvas>
+                </div>
+              </div>
+
+              <!-- Chart 3: Sales by Category (Bar Chart) -->
+              <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Sales by Category</h3>
+                    <p class="text-xs text-slate-400">Revenue across product families</p>
+                  </div>
+                  <i class="fa-solid fa-chart-column text-slate-400"></i>
+                </div>
+                <div class="relative flex-1 min-h-[250px]">
+                  <canvas id="chart-category-sales"></canvas>
+                </div>
+              </div>
+
+              <!-- Chart 4: Profit by Category (Bar Chart) -->
+              <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Profit by Category</h3>
+                    <p class="text-xs text-slate-400">Net profitability per category</p>
+                  </div>
+                  <i class="fa-solid fa-hand-holding-dollar text-slate-400"></i>
+                </div>
+                <div class="relative flex-1 min-h-[250px]">
+                  <canvas id="chart-category-profit"></canvas>
+                </div>
+              </div>
+
+              <!-- Top 5 Products Table / Mini leaderboard -->
+              <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Top 5 Products</h3>
+                    <p class="text-xs text-slate-400">Highest grossing items</p>
+                  </div>
+                  <i class="fa-solid fa-trophy text-amber-500"></i>
+                </div>
+                <div class="overflow-x-auto flex-1">
+                  <table class="w-full text-left text-xs">
+                    <thead>
+                      <tr class="border-b border-slate-100 dark:border-slate-700 text-slate-400">
+                        <th class="py-2 font-medium">Product</th>
+                        <th class="py-2 font-medium text-right">Sales</th>
+                        <th class="py-2 font-medium text-right">Profit</th>
+                      </tr>
+                    </thead>
+                    <tbody id="top-products-tbody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                      <!-- Rendered by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section: Business Intelligence Insights Engine -->
+            <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-6 rounded-2xl shadow-lg border border-slate-800 mt-6">
+              <div class="flex items-center space-x-3 mb-4">
+                <div class="w-9 h-9 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                  <i class="fa-solid fa-brain text-lg"></i>
+                </div>
+                <div>
+                  <h3 class="text-base font-bold tracking-tight">Business Intelligence Insights & Diagnosis</h3>
+                  <p class="text-xs text-slate-400">Automated analytical interpretation generated in real-time</p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+                <!-- Descriptive Analysis -->
+                <div class="bg-slate-800/60 backdrop-blur-sm border border-slate-700/60 p-4 rounded-xl">
+                  <div class="flex items-center space-x-2 text-sky-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>Descriptive Analysis</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mb-1">What happened?</p>
+                  <p id="insight-descriptive" class="text-sm font-medium text-slate-200 leading-snug">Analyzing filtered data...</p>
+                </div>
+
+                <!-- Diagnostic Analysis -->
+                <div class="bg-slate-800/60 backdrop-blur-sm border border-slate-700/60 p-4 rounded-xl">
+                  <div class="flex items-center space-x-2 text-amber-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <i class="fa-solid fa-magnifying-glass-chart"></i>
+                    <span>Diagnostic Analysis</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mb-1">Why did it happen?</p>
+                  <p id="insight-diagnostic" class="text-sm font-medium text-slate-200 leading-snug">Evaluating revenue drivers...</p>
+                </div>
+
+                <!-- Trend Analysis -->
+                <div class="bg-slate-800/60 backdrop-blur-sm border border-slate-700/60 p-4 rounded-xl">
+                  <div class="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <i class="fa-solid fa-arrow-trend-up"></i>
+                    <span>Trend Analysis</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mb-1">How are sales changing?</p>
+                  <p id="insight-trend" class="text-sm font-medium text-slate-200 leading-snug">Comparing month-over-month trajectories...</p>
+                </div>
+
+                <!-- Top & Bottom Analysis -->
+                <div class="bg-slate-800/60 backdrop-blur-sm border border-slate-700/60 p-4 rounded-xl">
+                  <div class="flex items-center space-x-2 text-rose-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <i class="fa-solid fa-ranking-star"></i>
+                    <span>Top / Bottom Analysis</span>
+                  </div>
+                  <p class="text-xs text-slate-400 mb-1">Product performance extremes</p>
+                  <p id="insight-topbottom" class="text-sm font-medium text-slate-200 leading-snug">Finding leading and lagging products...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 2: SALES ANALYSIS ==================== -->
+        <div id="view-sales-analysis" class="hidden space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Full Product Sales Breakdown Bar Chart -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+              <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1">Revenue by Product Line</h3>
+              <p class="text-xs text-slate-400 mb-4">Comparison of all product total sales volume</p>
+              <div class="relative flex-1 min-h-[300px]">
+                <canvas id="chart-product-sales"></canvas>
+              </div>
+            </div>
+
+            <!-- Profit Margin % by Category Scatter/Bar -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+              <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1">Profit Margins (%) by Product</h3>
+              <p class="text-xs text-slate-400 mb-4">High margin vs low margin item identification</p>
+              <div class="relative flex-1 min-h-[300px]">
+                <canvas id="chart-product-margin"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Category Performance Matrix Table -->
+          <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1">Category Performance Summary</h3>
+            <p class="text-xs text-slate-400 mb-4">Aggregated sales, profit, quantity, and effective margin</p>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-900/60 text-slate-500 uppercase text-xs font-semibold">
+                  <tr>
+                    <th class="py-3 px-4">Category</th>
+                    <th class="py-3 px-4 text-right">Total Revenue</th>
+                    <th class="py-3 px-4 text-right">Total Profit</th>
+                    <th class="py-3 px-4 text-right">Units Sold</th>
+                    <th class="py-3 px-4 text-right">Profit Margin</th>
+                    <th class="py-3 px-4 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="category-summary-tbody" class="divide-y divide-slate-100 dark:divide-slate-700/60">
+                  <!-- Generated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 3: CUSTOMER ANALYSIS ==================== -->
+        <div id="view-customer-analysis" class="hidden space-y-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+              <span class="text-xs font-semibold text-slate-400 uppercase">Unique Customers</span>
+              <h3 id="cust-kpi-unique" class="text-2xl font-bold text-slate-900 dark:text-white mt-1">0</h3>
+              <p class="text-xs text-sky-600 dark:text-sky-400 mt-1">Active buyers</p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+              <span class="text-xs font-semibold text-slate-400 uppercase">Average Order Value (AOV)</span>
+              <h3 id="cust-kpi-aov" class="text-2xl font-bold text-slate-900 dark:text-white mt-1">₹0</h3>
+              <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-1">Per transaction avg</p>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+              <span class="text-xs font-semibold text-slate-400 uppercase">Repeat Customer Rate</span>
+              <h3 id="cust-kpi-repeat-rate" class="text-2xl font-bold text-slate-900 dark:text-white mt-1">0%</h3>
+              <p class="text-xs text-violet-600 dark:text-violet-400 mt-1">Clients with &gt;1 orders</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Top Customers Chart -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+              <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1">Top 7 Customers by Spend</h3>
+              <p class="text-xs text-slate-400 mb-4">Highest lifetime value accounts</p>
+              <div class="relative flex-1 min-h-[300px]">
+                <canvas id="chart-top-customers"></canvas>
+              </div>
+            </div>
+
+            <!-- Customer Breakdown Table -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+              <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1">Customer Portfolio Matrix</h3>
+              <p class="text-xs text-slate-400 mb-4">Orders count, total spend, and primary region</p>
+              <div class="overflow-x-auto flex-1">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-50 dark:bg-slate-900/60 text-slate-500 uppercase font-semibold">
+                    <tr>
+                      <th class="py-2 px-3">Customer</th>
+                      <th class="py-2 px-3 text-center">Orders</th>
+                      <th class="py-2 px-3 text-right">Total Spent</th>
+                      <th class="py-2 px-3 text-right">Avg Ticket</th>
+                      <th class="py-2 px-3 text-center">Region</th>
+                    </tr>
+                  </thead>
+                  <tbody id="customer-matrix-tbody" class="divide-y divide-slate-100 dark:divide-slate-700/60">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 4: SALESPERSON ANALYSIS ==================== -->
+        <div id="view-salesperson-analysis" class="hidden space-y-6">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Salesperson Revenue vs Target Chart -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+              <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1">Sales Rep Revenue Performance</h3>
+              <p class="text-xs text-slate-400 mb-4">Direct sales comparisons across sales executives</p>
+              <div class="relative flex-1 min-h-[300px]">
+                <canvas id="chart-salesperson-bar"></canvas>
+              </div>
+            </div>
+
+            <!-- Top Performer Spotlight Card -->
+            <div class="bg-gradient-to-br from-sky-600 to-indigo-700 text-white p-6 rounded-xl shadow-md flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-4">
+                  <span class="text-xs font-bold uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full">Top Performer</span>
+                  <i class="fa-solid fa-crown text-amber-300 text-xl"></i>
+                </div>
+                <h4 id="rep-top-name" class="text-2xl font-black mb-1">--</h4>
+                <p id="rep-top-region" class="text-sky-100 text-xs">Lead Region: --</p>
+                <div class="mt-6 space-y-3">
+                  <div class="flex justify-between border-b border-white/20 pb-2 text-xs">
+                    <span>Generated Sales</span>
+                    <span id="rep-top-sales" class="font-bold">₹0</span>
+                  </div>
+                  <div class="flex justify-between border-b border-white/20 pb-2 text-xs">
+                    <span>Profit Brought</span>
+                    <span id="rep-top-profit" class="font-bold">₹0</span>
+                  </div>
+                  <div class="flex justify-between text-xs">
+                    <span>Orders Closed</span>
+                    <span id="rep-top-orders" class="font-bold">0</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-6 pt-4 border-t border-white/20 text-[11px] text-sky-100 italic">
+                *Represents highest grossing team member under current filter criteria.
+              </div>
+            </div>
+          </div>
+
+          <!-- Sales Rep Leaderboard Table -->
+          <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm mb-1">Sales Rep Scorecard & Quota Standing</h3>
+            <p class="text-xs text-slate-400 mb-4">Detailed breakdown of team productivity and earnings</p>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 dark:bg-slate-900/60 text-slate-500 uppercase text-xs font-semibold">
+                  <tr>
+                    <th class="py-3 px-4">Salesperson</th>
+                    <th class="py-3 px-4 text-center">Deals Closed</th>
+                    <th class="py-3 px-4 text-right">Total Sales</th>
+                    <th class="py-3 px-4 text-right">Profit Contribution</th>
+                    <th class="py-3 px-4 text-right">Avg Deal Size</th>
+                    <th class="py-3 px-4 text-center">Performance Rating</th>
+                  </tr>
+                </thead>
+                <tbody id="salesperson-leaderboard-tbody" class="divide-y divide-slate-100 dark:divide-slate-700/60">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== VIEW 5: DATA VIEW & CSV UPLOAD ==================== -->
+        <div id="view-data-view" class="hidden space-y-6">
+          <!-- Upload Box & Instructions -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Drag and Drop CSV Box -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-sky-500 dark:hover:border-sky-500 transition duration-200 flex flex-col items-center justify-center text-center group cursor-pointer relative" id="drop-zone">
+              <input type="file" id="csv-file-input" accept=".csv" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+              <div class="w-14 h-14 rounded-full bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition duration-200">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+              </div>
+              <h4 class="text-base font-bold text-slate-800 dark:text-slate-100 mb-1">Upload New Sales Dataset (.CSV)</h4>
+              <p class="text-xs text-slate-400 max-w-sm mb-4">Drag and drop your CSV file here, or click to browse files from your computer.</p>
+              <div class="flex items-center space-x-2">
+                <span class="inline-block px-3 py-1.5 bg-sky-600 text-white text-xs font-semibold rounded-lg shadow-sm">
+                  Select CSV File
+                </span>
+                <button type="button" onclick="loadSampleDataset(event)" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg transition">
+                  Reload Default Dataset
+                </button>
+              </div>
+            </div>
+
+            <!-- Quick Template & Tools -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+              <div>
+                <h4 class="text-sm font-bold text-slate-800 dark:text-slate-100 mb-2">CSV Schema Format</h4>
+                <p class="text-xs text-slate-400 mb-3">Ensure your CSV headers contain: <br><code class="text-sky-600 dark:text-sky-400 font-mono text-[11px]">Date, Product, Category, Region, Sales, Quantity, Profit, Salesperson, Customer</code></p>
+                <div class="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-1">
+                  <p>2026-01-05,Laptop,Electronics,West,65000,5,10000,Priya,Apex Corp</p>
+                  <p>2026-01-08,Chair,Furniture,North,15000,10,3500,Rahul,Zenith Ltd</p>
+                </div>
+              </div>
+              <div class="pt-4 mt-4 border-t border-slate-100 dark:border-slate-700/60 flex space-x-2">
+                <button onclick="downloadSampleCSVTemplate()" class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition flex items-center justify-center space-x-1.5">
+                  <i class="fa-solid fa-download"></i>
+                  <span>Download Sample CSV</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dataset Raw Table Explorer -->
+          <div class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm">Active Raw Sales Dataset</h3>
+                <p class="text-xs text-slate-400" id="data-records-info">Showing records</p>
+              </div>
+              <div class="flex items-center space-x-2">
+                <!-- Search Box -->
+                <div class="relative">
+                  <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+                  <input type="text" id="table-search-input" oninput="handleTableSearch()" placeholder="Search records..." class="pl-8 pr-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+                <!-- Export to CSV -->
+                <button onclick="exportCurrentDataToCSV()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition flex items-center space-x-1">
+                  <i class="fa-solid fa-file-export"></i>
+                  <span>Export CSV</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-100 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 uppercase font-semibold">
+                  <tr>
+                    <th class="py-2.5 px-3">Date</th>
+                    <th class="py-2.5 px-3">Product</th>
+                    <th class="py-2.5 px-3">Category</th>
+                    <th class="py-2.5 px-3">Region</th>
+                    <th class="py-2.5 px-3 text-right">Sales (₹)</th>
+                    <th class="py-2.5 px-3 text-right">Qty</th>
+                    <th class="py-2.5 px-3 text-right">Profit (₹)</th>
+                    <th class="py-2.5 px-3">Salesperson</th>
+                    <th class="py-2.5 px-3">Customer</th>
+                  </tr>
+                </thead>
+                <tbody id="raw-data-tbody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                  <!-- Generated by JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination bar -->
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <span id="pagination-info">Page 1</span>
+              <div class="flex space-x-1">
+                <button onclick="changePage(-1)" id="btn-prev-page" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed">Previous</button>
+                <button onclick="changePage(1)" id="btn-next-page" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. DATA STRUCTURE & DEFAULT SAMPLE DATASET (Realistic Indian Rupee dataset)
+       ========================================================================== */
+    const DEFAULT_DATASET = [
+      { Date: "2026-01-05", Product: "Laptop", Category: "Electronics", Region: "West", Sales: 65000, Quantity: 5, Profit: 10000, Salesperson: "Priya", Customer: "Tata Consultancy" },
+      { Date: "2026-01-08", Product: "Chair", Category: "Furniture", Region: "North", Sales: 15000, Quantity: 10, Profit: 3500, Salesperson: "Rahul", Customer: "Wipro Tech" },
+      { Date: "2026-01-12", Product: "Shirt", Category: "Clothing", Region: "South", Sales: 12000, Quantity: 20, Profit: 3000, Salesperson: "Sneha", Customer: "Infosys Hub" },
+      { Date: "2026-01-15", Product: "Smartphone", Category: "Electronics", Region: "East", Sales: 48000, Quantity: 4, Profit: 8000, Salesperson: "Vikram", Customer: "Reliance Digital" },
+      { Date: "2026-01-20", Product: "Desk", Category: "Furniture", Region: "West", Sales: 28000, Quantity: 6, Profit: 5200, Salesperson: "Priya", Customer: "HDFC Corp" },
+      { Date: "2026-01-25", Product: "Headphones", Category: "Electronics", Region: "North", Sales: 18000, Quantity: 12, Profit: 4500, Salesperson: "Amit", Customer: "Zenith Labs" },
+      { Date: "2026-02-02", Product: "Shoes", Category: "Clothing", Region: "West", Sales: 22000, Quantity: 14, Profit: 5500, Salesperson: "Priya", Customer: "Zomato Ltd" },
+      { Date: "2026-02-07", Product: "Laptop", Category: "Electronics", Region: "South", Sales: 78000, Quantity: 6, Profit: 13500, Salesperson: "Sneha", Customer: "Flipkart Pvt" },
+      { Date: "2026-02-12", Product: "Chair", Category: "Furniture", Region: "East", Sales: 18000, Quantity: 12, Profit: 4200, Salesperson: "Vikram", Customer: "Swiggy HQ" },
+      { Date: "2026-02-18", Product: "Smartphone", Category: "Electronics", Region: "North", Sales: 62000, Quantity: 5, Profit: 11000, Salesperson: "Rahul", Customer: "Airtel Ent" },
+      { Date: "2026-02-22", Product: "Desk", Category: "Furniture", Region: "South", Sales: 34000, Quantity: 7, Profit: 6800, Salesperson: "Sneha", Customer: "Titan Watches" },
+      { Date: "2026-02-26", Product: "Headphones", Category: "Electronics", Region: "West", Sales: 24000, Quantity: 16, Profit: 6000, Salesperson: "Amit", Customer: "Adani Ports" },
+      { Date: "2026-03-03", Product: "Shirt", Category: "Clothing", Region: "North", Sales: 16000, Quantity: 25, Profit: 4200, Salesperson: "Rahul", Customer: "ICICI Bank" },
+      { Date: "2026-03-09", Product: "Shoes", Category: "Clothing", Region: "East", Sales: 19000, Quantity: 11, Profit: 4900, Salesperson: "Vikram", Customer: "Tata Consultancy" },
+      { Date: "2026-03-14", Product: "Laptop", Category: "Electronics", Region: "West", Sales: 92000, Quantity: 7, Profit: 16000, Salesperson: "Priya", Customer: "Ola Electric" },
+      { Date: "2026-03-18", Product: "Smartphone", Category: "Electronics", Region: "South", Sales: 55000, Quantity: 5, Profit: 9800, Salesperson: "Sneha", Customer: "L&T Systems" },
+      { Date: "2026-03-24", Product: "Chair", Category: "Furniture", Region: "West", Sales: 21000, Quantity: 14, Profit: 4800, Salesperson: "Amit", Customer: "Mahindra & Co" },
+      { Date: "2026-03-28", Product: "Desk", Category: "Furniture", Region: "North", Sales: 31000, Quantity: 6, Profit: 6100, Salesperson: "Rahul", Customer: "Infosys Hub" },
+      { Date: "2026-04-05", Product: "Laptop", Category: "Electronics", Region: "North", Sales: 85000, Quantity: 6, Profit: 15000, Salesperson: "Rahul", Customer: "HCL Tech" },
+      { Date: "2026-04-11", Product: "Shoes", Category: "Clothing", Region: "South", Sales: 26000, Quantity: 16, Profit: 6800, Salesperson: "Sneha", Customer: "Wipro Tech" },
+      { Date: "2026-04-16", Product: "Headphones", Category: "Electronics", Region: "East", Sales: 21000, Quantity: 14, Profit: 5200, Salesperson: "Vikram", Customer: "Vedanta Corp" },
+      { Date: "2026-04-20", Product: "Shirt", Category: "Clothing", Region: "West", Sales: 18000, Quantity: 28, Profit: 4800, Salesperson: "Priya", Customer: "Reliance Digital" },
+      { Date: "2026-04-27", Product: "Smartphone", Category: "Electronics", Region: "West", Sales: 72000, Quantity: 6, Profit: 13000, Salesperson: "Amit", Customer: "Zomato Ltd" },
+      { Date: "2026-05-03", Product: "Desk", Category: "Furniture", Region: "East", Sales: 29000, Quantity: 6, Profit: 5700, Salesperson: "Vikram", Customer: "ITC Limited" },
+      { Date: "2026-05-09", Product: "Chair", Category: "Furniture", Region: "South", Sales: 24000, Quantity: 15, Profit: 5300, Salesperson: "Sneha", Customer: "Byju's Learning" },
+      { Date: "2026-05-15", Product: "Laptop", Category: "Electronics", Region: "East", Sales: 81000, Quantity: 6, Profit: 14000, Salesperson: "Vikram", Customer: "Tata Steel" },
+      { Date: "2026-05-21", Product: "Headphones", Category: "Electronics", Region: "South", Sales: 23000, Quantity: 15, Profit: 5800, Salesperson: "Sneha", Customer: "Apollo Hospitals" },
+      { Date: "2026-05-28", Product: "Shoes", Category: "Clothing", Region: "North", Sales: 29000, Quantity: 18, Profit: 7500, Salesperson: "Amit", Customer: "Hero MotoCorp" },
+      { Date: "2026-06-04", Product: "Smartphone", Category: "Electronics", Region: "West", Sales: 84000, Quantity: 7, Profit: 15500, Salesperson: "Priya", Customer: "Godrej Group" },
+      { Date: "2026-06-10", Product: "Shirt", Category: "Clothing", Region: "East", Sales: 14000, Quantity: 22, Profit: 3700, Salesperson: "Vikram", Customer: "Bajaj Auto" },
+      { Date: "2026-06-18", Product: "Desk", Category: "Furniture", Region: "North", Sales: 36000, Quantity: 7, Profit: 7200, Salesperson: "Rahul", Customer: "Sun Pharma" },
+      { Date: "2026-06-25", Product: "Laptop", Category: "Electronics", Region: "West", Sales: 98000, Quantity: 7, Profit: 17500, Salesperson: "Priya", Customer: "Tata Consultancy" },
+      { Date: "2026-07-04", Product: "Headphones", Category: "Electronics", Region: "North", Sales: 25000, Quantity: 16, Profit: 6200, Salesperson: "Amit", Customer: "HDFC Corp" },
+      { Date: "2026-07-12", Product: "Chair", Category: "Furniture", Region: "West", Sales: 27000, Quantity: 16, Profit: 6000, Salesperson: "Priya", Customer: "Flipkart Pvt" },
+      { Date: "2026-07-19", Product: "Smartphone", Category: "Electronics", Region: "South", Sales: 66000, Quantity: 5, Profit: 11800, Salesperson: "Sneha", Customer: "Infosys Hub" },
+      { Date: "2026-07-28", Product: "Shoes", Category: "Clothing", Region: "East", Sales: 24000, Quantity: 14, Profit: 6200, Salesperson: "Vikram", Customer: "Paytm Ltd" },
+      { Date: "2026-08-05", Product: "Laptop", Category: "Electronics", Region: "South", Sales: 89000, Quantity: 7, Profit: 15800, Salesperson: "Sneha", Customer: "Swiggy HQ" },
+      { Date: "2026-08-14", Product: "Shirt", Category: "Clothing", Region: "South", Sales: 17000, Quantity: 26, Profit: 4400, Salesperson: "Sneha", Customer: "Titan Watches" },
+      { Date: "2026-08-22", Product: "Desk", Category: "Furniture", Region: "West", Sales: 32000, Quantity: 6, Profit: 6500, Salesperson: "Amit", Customer: "Adani Ports" },
+      { Date: "2026-09-02", Product: "Smartphone", Category: "Electronics", Region: "North", Sales: 76000, Quantity: 6, Profit: 13800, Salesperson: "Rahul", Customer: "Wipro Tech" }
+    ];
+
+    // Global Working Dataset and Filter State
+    let salesDataset = JSON.parse(JSON.stringify(DEFAULT_DATASET));
+    let filteredDataset = [];
+    let currentPage = 'dashboard';
+    let tableCurrentPage = 1;
+    const tablePageSize = 10;
+    let tableSearchQuery = '';
+
+    // Chart.js instances registry
+    const chartInstances = {};
+
+    // Rupee Formatter (₹)
+    function formatINR(val) {
+      if (val === null || val === undefined || isNaN(val)) return '₹0';
+      const rounded = Math.round(val);
+      // Indian numbering format (lakhs & crores)
+      return '₹' + rounded.toLocaleString('en-IN');
+    }
+
+    function formatNumber(val) {
+      if (isNaN(val)) return '0';
+      return Math.round(val).toLocaleString('en-IN');
+    }
+
+    function populateDropdownFilters() {
+      const regions = new Set();
+      const categories = new Set();
+      const products = new Set();
+      const salespeople = new Set();
+
+      salesDataset.forEach(row => {
+        if (row.Region) regions.add(row.Region);
+        if (row.Category) categories.add(row.Category);
+        if (row.Product) products.add(row.Product);
+        if (row.Salesperson) salespeople.add(row.Salesperson);
+      });
+
+      const fillSelect = (id, label, set) => {
+        const sel = document.getElementById(id);
+        const currentVal = sel.value;
+        sel.innerHTML = `<option value="ALL">${label}: All</option>`;
+        Array.from(set).sort().forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item;
+          opt.textContent = `${label}: ${item}`;
+          sel.appendChild(opt);
+        });
+        if (Array.from(set).includes(currentVal)) {
+          sel.value = currentVal;
+        } else {
+          sel.value = "ALL";
+        }
+      };
+
+      fillSelect('filter-region', 'Region', regions);
+      fillSelect('filter-category', 'Category', categories);
+      fillSelect('filter-product', 'Product', products);
+      fillSelect('filter-salesperson', 'Salesperson', salespeople);
+    }
+
+    function resetAllFilters() {
+      document.getElementById('filter-region').value = 'ALL';
+      document.getElementById('filter-category').value = 'ALL';
+      document.getElementById('filter-product').value = 'ALL';
+      document.getElementById('filter-salesperson').value = 'ALL';
+      document.getElementById('filter-date-period').value = 'ALL';
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const rVal = document.getElementById('filter-region').value;
+      const cVal = document.getElementById('filter-category').value;
+      const pVal = document.getElementById('filter-product').value;
+      const sVal = document.getElementById('filter-salesperson').value;
+      const dVal = document.getElementById('filter-date-period').value;
+
+      filteredDataset = salesDataset.filter(item => {
+        if (rVal !== 'ALL' && item.Region !== rVal) return false;
+        if (cVal !== 'ALL' && item.Category !== cVal) return false;
+        if (pVal !== 'ALL' && item.Product !== pVal) return false;
+        if (sVal !== 'ALL' && item.Salesperson !== sVal) return false;
+
+        if (dVal !== 'ALL') {
+          const month = parseInt(item.Date.split('-')[1], 10);
+          if (dVal === '2026-Q1' && (month < 1 || month > 3)) return false;
+          if (dVal === '2026-Q2' && (month < 4 || month > 6)) return false;
+          if (dVal === '2026-Q3' && (month < 7 || month > 9)) return false;
+        }
+        return true;
+      });
+
+      // Update Filter Counter Badge
+      document.getElementById('filter-count-badge').textContent = 
+        `Showing ${filteredDataset.length} of ${salesDataset.length} records`;
+
+      // Update KPIs & Views
+      updateKPIs();
+      renderBusinessInsights();
+      updateDashboardCharts();
+      updateTopProductsTable();
+      updateSalesAnalysisView();
+      updateCustomerAnalysisView();
+      updateSalespersonView();
+      renderRawDataTable();
+    }
+
+    function updateKPIs() {
+      const totalSales = filteredDataset.reduce((sum, r) => sum + (Number(r.Sales) || 0), 0);
+      const totalProfit = filteredDataset.reduce((sum, r) => sum + (Number(r.Profit) || 0), 0);
+      const totalOrders = filteredDataset.length;
+      const unitsSold = filteredDataset.reduce((sum, r) => sum + (Number(r.Quantity) || 0), 0);
+      const profitMargin = totalSales > 0 ? ((totalProfit / totalSales) * 100).toFixed(1) : 0;
+
+      document.getElementById('kpi-total-sales').textContent = formatINR(totalSales);
+      document.getElementById('kpi-total-profit').textContent = formatINR(totalProfit);
+      document.getElementById('kpi-total-orders').textContent = formatNumber(totalOrders);
+      document.getElementById('kpi-units-sold').textContent = formatNumber(unitsSold);
+      document.getElementById('kpi-profit-margin').textContent = `${profitMargin}%`;
+    }
+
+    function renderBusinessInsights() {
+      if (filteredDataset.length === 0) {
+        document.getElementById('insight-descriptive').textContent = "No data available for selected filter filters.";
+        document.getElementById('insight-diagnostic').textContent = "Clear or widen filters to assess diagnostic trends.";
+        document.getElementById('insight-trend').textContent = "Trend unavailable with zero matching entries.";
+        document.getElementById('insight-topbottom').textContent = "No product data.";
+        return;
+      }
+
+      const totalSales = filteredDataset.reduce((s, r) => s + Number(r.Sales || 0), 0);
+      const totalProfit = filteredDataset.reduce((s, r) => s + Number(r.Profit || 0), 0);
+
+      // Aggregations
+      const catSales = {};
+      const prodSales = {};
+      const regSales = {};
+      const monthSales = {};
+
+      filteredDataset.forEach(row => {
+        catSales[row.Category] = (catSales[row.Category] || 0) + Number(row.Sales || 0);
+        prodSales[row.Product] = (prodSales[row.Product] || 0) + Number(row.Sales || 0);
+        regSales[row.Region] = (regSales[row.Region] || 0) + Number(row.Sales || 0);
+        
+        const mKey = row.Date ? row.Date.substring(0, 7) : 'Unknown';
+        monthSales[mKey] = (monthSales[mKey] || 0) + Number(row.Sales || 0);
+      });
+
+      // 1. Descriptive
+      const topCat = Object.keys(catSales).reduce((a, b) => catSales[a] > catSales[b] ? a : b, Object.keys(catSales)[0]);
+      const topReg = Object.keys(regSales).reduce((a, b) => regSales[a] > regSales[b] ? a : b, Object.keys(regSales)[0]);
+      document.getElementById('insight-descriptive').textContent = 
+        `Total revenue reached ${formatINR(totalSales)} with ${filteredDataset.length} orders. ${topCat || 'Leading category'} contributed the largest share.`;
+
+      // 2. Diagnostic
+      const topCatPct = totalSales > 0 ? Math.round((catSales[topCat] / totalSales) * 100) : 0;
+      document.getElementById('insight-diagnostic').textContent = 
+        `High revenue is primarily driven by ${topCat}, securing ${topCatPct}% of volume, paired with heavy buyer presence in the ${topReg} region.`;
+
+      // 3. Trend
+      const sortedMonths = Object.keys(monthSales).sort();
+      if (sortedMonths.length >= 2) {
+        const lastM = sortedMonths[sortedMonths.length - 1];
+        const prevM = sortedMonths[sortedMonths.length - 2];
+        const diff = monthSales[lastM] - monthSales[prevM];
+        const pctDiff = monthSales[prevM] > 0 ? ((diff / monthSales[prevM]) * 100).toFixed(1) : 0;
+        const trendDir = diff >= 0 ? "increased by" : "decreased by";
+        document.getElementById('insight-trend').textContent = 
+          `Monthly velocity ${trendDir} ${Math.abs(pctDiff)}% from ${prevM} (${formatINR(monthSales[prevM])}) to ${lastM} (${formatINR(monthSales[lastM])}).`;
+      } else {
+        document.getElementById('insight-trend').textContent = 
+          `Stable steady revenue across active period with balanced monthly fulfillment.`;
+      }
+
+      // 4. Top/Bottom
+      const sortedProds = Object.keys(prodSales).sort((a, b) => prodSales[b] - prodSales[a]);
+      const bestProd = sortedProds[0] || 'N/A';
+      const worstProd = sortedProds[sortedProds.length - 1] || 'N/A';
+      document.getElementById('insight-topbottom').textContent = 
+        `Top Performer: ${bestProd} (${formatINR(prodSales[bestProd])}). Lagging Product: ${worstProd} (${formatINR(prodSales[worstProd])}).`;
+    }
+
+    function destroyChart(name) {
+      if (chartInstances[name]) {
+        chartInstances[name].destroy();
+        delete chartInstances[name];
+      }
+    }
+
+    function isDarkMode() {
+      return document.documentElement.classList.contains('dark');
+    }
+
+    function getChartThemeColors() {
+      const dark = isDarkMode();
+      return {
+        text: dark ? '#cbd5e1' : '#475569',
+        grid: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+      };
+    }
+
+    function updateDashboardCharts() {
+      const theme = getChartThemeColors();
+
+      // 1. Monthly Sales Trend (Line Chart)
+      const monthlyData = {};
+      filteredDataset.forEach(row => {
+        if (!row.Date) return;
+        const m = row.Date.substring(0, 7); // YYYY-MM
+        monthlyData[m] = (monthlyData[m] || 0) + Number(row.Sales || 0);
+      });
+      const monthLabels = Object.keys(monthlyData).sort();
+      const monthValues = monthLabels.map(m => monthlyData[m]);
+
+      destroyChart('monthlyTrend');
+      const ctxMonthly = document.getElementById('chart-monthly-trend').getContext('2d');
+      chartInstances['monthlyTrend'] = new Chart(ctxMonthly, {
+        type: 'line',
+        data: {
+          labels: monthLabels.length ? monthLabels : ['No Data'],
+          datasets: [{
+            label: 'Sales (₹)',
+            data: monthValues.length ? monthValues : [0],
+            borderColor: '#0284c7',
+            backgroundColor: 'rgba(2, 132, 199, 0.12)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: '#0369a1',
+            pointRadius: 4,
+            pointHoverRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `Sales: ${formatINR(ctx.raw)}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: theme.grid },
+              ticks: { color: theme.text, font: { size: 11 } }
+            },
+            y: {
+              grid: { color: theme.grid },
+              ticks: {
+                color: theme.text,
+                font: { size: 11 },
+                callback: (val) => '₹' + (val >= 1000 ? (val/1000) + 'k' : val)
+              }
+            }
+          }
+        }
+      });
+
+      // 2. Sales by Region (Donut Chart)
+      const regionData = {};
+      filteredDataset.forEach(r => {
+        regionData[r.Region] = (regionData[r.Region] || 0) + Number(r.Sales || 0);
+      });
+      const regLabels = Object.keys(regionData);
+      const regValues = regLabels.map(k => regionData[k]);
+
+      destroyChart('regionDonut');
+      const ctxRegion = document.getElementById('chart-region-donut').getContext('2d');
+      chartInstances['regionDonut'] = new Chart(ctxRegion, {
+        type: 'doughnut',
+        data: {
+          labels: regLabels.length ? regLabels : ['No Data'],
+          datasets: [{
+            data: regValues.length ? regValues : [1],
+            backgroundColor: ['#0284c7', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'],
+            borderWidth: 2,
+            borderColor: isDarkMode() ? '#1e293b' : '#ffffff',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: theme.text, boxWidth: 12, font: { size: 11 } } },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => ` ${ctx.label}: ${formatINR(ctx.raw)}`
+              }
+            }
+          },
+          cutout: '68%'
+        }
+      });
+
+      // 3. Sales by Category (Bar Chart)
+      const catData = {};
+      filteredDataset.forEach(r => {
+        catData[r.Category] = (catData[r.Category] || 0) + Number(r.Sales || 0);
+      });
+      const catLabels = Object.keys(catData);
+      const catValues = catLabels.map(k => catData[k]);
+
+      destroyChart('catSales');
+      const ctxCat = document.getElementById('chart-category-sales').getContext('2d');
+      chartInstances['catSales'] = new Chart(ctxCat, {
+        type: 'bar',
+        data: {
+          labels: catLabels.length ? catLabels : ['No Data'],
+          datasets: [{
+            label: 'Sales',
+            data: catValues.length ? catValues : [0],
+            backgroundColor: '#0284c7',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx) => `Sales: ${formatINR(ctx.raw)}` } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: theme.text, font: { size: 11 } } },
+            y: { grid: { color: theme.grid }, ticks: { color: theme.text, callback: (v) => '₹' + (v/1000) + 'k' } }
+          }
+        }
+      });
+
+      // 4. Profit by Category (Bar Chart)
+      const catProfitData = {};
+      filteredDataset.forEach(r => {
+        catProfitData[r.Category] = (catProfitData[r.Category] || 0) + Number(r.Profit || 0);
+      });
+      const catPLabels = Object.keys(catProfitData);
+      const catPValues = catPLabels.map(k => catProfitData[k]);
+
+      destroyChart('catProfit');
+      const ctxCatProfit = document.getElementById('chart-category-profit').getContext('2d');
+      chartInstances['catProfit'] = new Chart(ctxCatProfit, {
+        type: 'bar',
+        data: {
+          labels: catPLabels.length ? catPLabels : ['No Data'],
+          datasets: [{
+            label: 'Profit',
+            data: catPValues.length ? catPValues : [0],
+            backgroundColor: '#10b981',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx) => `Profit: ${formatINR(ctx.raw)}` } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: theme.text, font: { size: 11 } } },
+            y: { grid: { color: theme.grid }, ticks: { color: theme.text, callback: (v) => '₹' + (v/1000) + 'k' } }
+          }
+        }
+      });
+    }
+
+    function updateTopProductsTable() {
+      const prodMap = {};
+      filteredDataset.forEach(r => {
+        if (!prodMap[r.Product]) {
+          prodMap[r.Product] = { product: r.Product, sales: 0, profit: 0, category: r.Category };
+        }
+        prodMap[r.Product].sales += Number(r.Sales || 0);
+        prodMap[r.Product].profit += Number(r.Profit || 0);
+      });
+
+      const top5 = Object.values(prodMap).sort((a, b) => b.sales - a.sales).slice(0, 5);
+      const tbody = document.getElementById('top-products-tbody');
+      tbody.innerHTML = '';
+
+      if (top5.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-slate-400">No records found</td></tr>`;
+        return;
+      }
+
+      top5.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/40 transition";
+        tr.innerHTML = `
+          <td class="py-2.5 flex items-center space-x-2">
+            <span class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
+              index === 0 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300' :
+              index === 1 ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300' :
+              'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+            }">${index + 1}</span>
+            <span class="font-semibold text-slate-800 dark:text-slate-200">${item.product}</span>
+          </td>
+          <td class="py-2.5 text-right font-medium text-slate-900 dark:text-white">${formatINR(item.sales)}</td>
+          <td class="py-2.5 text-right font-medium text-emerald-600 dark:text-emerald-400">${formatINR(item.profit)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateSalesAnalysisView() {
+      const theme = getChartThemeColors();
+      const prodStats = {};
+      const catStats = {};
+
+      filteredDataset.forEach(row => {
+        // Products
+        if (!prodStats[row.Product]) prodStats[row.Product] = { sales: 0, profit: 0 };
+        prodStats[row.Product].sales += Number(row.Sales || 0);
+        prodStats[row.Product].profit += Number(row.Profit || 0);
+
+        // Categories
+        if (!catStats[row.Category]) catStats[row.Category] = { sales: 0, profit: 0, qty: 0 };
+        catStats[row.Category].sales += Number(row.Sales || 0);
+        catStats[row.Category].profit += Number(row.Profit || 0);
+        catStats[row.Category].qty += Number(row.Quantity || 0);
+      });
+
+      const pNames = Object.keys(prodStats);
+      const pSales = pNames.map(p => prodStats[p].sales);
+      const pMargins = pNames.map(p => prodStats[p].sales > 0 ? ((prodStats[p].profit / prodStats[p].sales) * 100).toFixed(1) : 0);
+
+      // 1. Product Sales Bar
+      destroyChart('productSalesDeep');
+      const ctxProd = document.getElementById('chart-product-sales').getContext('2d');
+      chartInstances['productSalesDeep'] = new Chart(ctxProd, {
+        type: 'bar',
+        data: {
+          labels: pNames,
+          datasets: [{
+            label: 'Sales Revenue',
+            data: pSales,
+            backgroundColor: '#0284c7',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx) => `Revenue: ${formatINR(ctx.raw)}` } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: theme.text, font: { size: 10 } } },
+            y: { grid: { color: theme.grid }, ticks: { color: theme.text, callback: (v) => '₹' + (v/1000) + 'k' } }
+          }
+        }
+      });
+
+      // 2. Product Profit Margin %
+      destroyChart('productMarginChart');
+      const ctxMargin = document.getElementById('chart-product-margin').getContext('2d');
+      chartInstances['productMarginChart'] = new Chart(ctxMargin, {
+        type: 'bar',
+        data: {
+          labels: pNames,
+          datasets: [{
+            label: 'Profit Margin (%)',
+            data: pMargins,
+            backgroundColor: '#8b5cf6',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx) => `Margin: ${ctx.raw}%` } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: theme.text, font: { size: 10 } } },
+            y: { grid: { color: theme.grid }, ticks: { color: theme.text, callback: (v) => v + '%' } }
+          }
+        }
+      });
+
+      // Category Matrix Table
+      const catTbody = document.getElementById('category-summary-tbody');
+      catTbody.innerHTML = '';
+      Object.keys(catStats).forEach(cat => {
+        const data = catStats[cat];
+        const margin = data.sales > 0 ? ((data.profit / data.sales) * 100).toFixed(1) : 0;
+        const statusBadge = margin >= 20 ? 
+          '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">High Margin</span>' :
+          '<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400">Moderate</span>';
+
+        const row = document.createElement('tr');
+        row.className = "hover:bg-slate-50 dark:hover:bg-slate-800/40";
+        row.innerHTML = `
+          <td class="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">${cat}</td>
+          <td class="py-3 px-4 text-right font-medium">${formatINR(data.sales)}</td>
+          <td class="py-3 px-4 text-right font-medium text-emerald-600 dark:text-emerald-400">${formatINR(data.profit)}</td>
+          <td class="py-3 px-4 text-right font-medium">${formatNumber(data.qty)}</td>
+          <td class="py-3 px-4 text-right font-bold">${margin}%</td>
+          <td class="py-3 px-4 text-center">${statusBadge}</td>
+        `;
+        catTbody.appendChild(row);
+      });
+    }
+
+    function updateCustomerAnalysisView() {
+      const theme = getChartThemeColors();
+      const customerMap = {};
+
+      filteredDataset.forEach(row => {
+        const c = row.Customer || 'Unassigned';
+        if (!customerMap[c]) {
+          customerMap[c] = { name: c, orders: 0, sales: 0, region: row.Region };
+        }
+        customerMap[c].orders += 1;
+        customerMap[c].sales += Number(row.Sales || 0);
+      });
+
+      const customers = Object.values(customerMap);
+      const totalCust = customers.length;
+      const totalSales = filteredDataset.reduce((s, r) => s + Number(r.Sales || 0), 0);
+      const totalOrders = filteredDataset.length;
+      const aov = totalOrders > 0 ? totalSales / totalOrders : 0;
+      const repeatCount = customers.filter(c => c.orders > 1).length;
+      const repeatRate = totalCust > 0 ? ((repeatCount / totalCust) * 100).toFixed(1) : 0;
+
+      document.getElementById('cust-kpi-unique').textContent = formatNumber(totalCust);
+      document.getElementById('cust-kpi-aov').textContent = formatINR(aov);
+      document.getElementById('cust-kpi-repeat-rate').textContent = `${repeatRate}%`;
+
+      // Top 7 Customers Chart
+      const topCustomers = [...customers].sort((a, b) => b.sales - a.sales).slice(0, 7);
+      destroyChart('topCustomersChart');
+      const ctxCust = document.getElementById('chart-top-customers').getContext('2d');
+      chartInstances['topCustomersChart'] = new Chart(ctxCust, {
+        type: 'bar',
+        data: {
+          labels: topCustomers.map(c => c.name),
+          datasets: [{
+            label: 'Total Spend (₹)',
+            data: topCustomers.map(c => c.sales),
+            backgroundColor: '#0369a1',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx) => `Spend: ${formatINR(ctx.raw)}` } }
+          },
+          scales: {
+            x: { grid: { color: theme.grid }, ticks: { color: theme.text, callback: (v) => '₹' + (v/1000) + 'k' } },
+            y: { grid: { display: false }, ticks: { color: theme.text, font: { size: 10 } } }
+          }
+        }
+      });
+
+      // Customer Table Matrix
+      const custTbody = document.getElementById('customer-matrix-tbody');
+      custTbody.innerHTML = '';
+      customers.sort((a, b) => b.sales - a.sales).forEach(c => {
+        const avgTicket = c.orders > 0 ? c.sales / c.orders : 0;
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-800/40";
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">${c.name}</td>
+          <td class="py-2.5 px-3 text-center">${c.orders}</td>
+          <td class="py-2.5 px-3 text-right font-medium text-slate-900 dark:text-white">${formatINR(c.sales)}</td>
+          <td class="py-2.5 px-3 text-right text-slate-500">${formatINR(avgTicket)}</td>
+          <td class="py-2.5 px-3 text-center">
+            <span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">${c.region}</span>
+          </td>
+        `;
+        custTbody.appendChild(tr);
+      });
+    }
+
+    function updateSalespersonView() {
+      const theme = getChartThemeColors();
+      const repMap = {};
+
+      filteredDataset.forEach(row => {
+        const name = row.Salesperson || 'Unassigned';
+        if (!repMap[name]) {
+          repMap[name] = { name: name, sales: 0, profit: 0, deals: 0, regions: new Set() };
+        }
+        repMap[name].sales += Number(row.Sales || 0);
+        repMap[name].profit += Number(row.Profit || 0);
+        repMap[name].deals += 1;
+        repMap[name].regions.add(row.Region);
+      });
+
+      const reps = Object.values(repMap).sort((a, b) => b.sales - a.sales);
+
+      // Top Performer Card Spotlight
+      if (reps.length > 0) {
+        const top = reps[0];
+        document.getElementById('rep-top-name').textContent = top.name;
+        document.getElementById('rep-top-region').textContent = `Dominant Region: ${Array.from(top.regions).join(', ')}`;
+        document.getElementById('rep-top-sales').textContent = formatINR(top.sales);
+        document.getElementById('rep-top-profit').textContent = formatINR(top.profit);
+        document.getElementById('rep-top-orders').textContent = formatNumber(top.deals);
+      } else {
+        document.getElementById('rep-top-name').textContent = 'N/A';
+        document.getElementById('rep-top-sales').textContent = '₹0';
+      }
+
+      // Chart: Rep Sales Comparison
+      destroyChart('salespersonBar');
+      const ctxRep = document.getElementById('chart-salesperson-bar').getContext('2d');
+      chartInstances['salespersonBar'] = new Chart(ctxRep, {
+        type: 'bar',
+        data: {
+          labels: reps.map(r => r.name),
+          datasets: [
+            {
+              label: 'Sales Revenue (₹)',
+              data: reps.map(r => r.sales),
+              backgroundColor: '#0284c7',
+              borderRadius: 6
+            },
+            {
+              label: 'Profit Generated (₹)',
+              data: reps.map(r => r.profit),
+              backgroundColor: '#10b981',
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top', labels: { color: theme.text, font: { size: 11 } } },
+            tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${formatINR(ctx.raw)}` } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: theme.text, font: { size: 11 } } },
+            y: { grid: { color: theme.grid }, ticks: { color: theme.text, callback: (v) => '₹' + (v/1000) + 'k' } }
+          }
+        }
+      });
+
+      // Table: Scorecard
+      const tbody = document.getElementById('salesperson-leaderboard-tbody');
+      tbody.innerHTML = '';
+      reps.forEach((rep, idx) => {
+        const avgDeal = rep.deals > 0 ? rep.sales / rep.deals : 0;
+        const rating = idx === 0 ? '⭐⭐⭐⭐⭐ Elite' : idx === 1 ? '⭐⭐⭐⭐ Star' : '⭐⭐⭐ Core';
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-800/40";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200 flex items-center space-x-2">
+            <span class="w-6 h-6 rounded-full bg-sky-100 dark:bg-sky-900/60 text-sky-800 dark:text-sky-300 font-bold text-xs flex items-center justify-center">${rep.name.charAt(0)}</span>
+            <span>${rep.name}</span>
+          </td>
+          <td class="py-3 px-4 text-center">${rep.deals}</td>
+          <td class="py-3 px-4 text-right font-medium text-slate-900 dark:text-white">${formatINR(rep.sales)}</td>
+          <td class="py-3 px-4 text-right font-medium text-emerald-600 dark:text-emerald-400">${formatINR(rep.profit)}</td>
+          <td class="py-3 px-4 text-right text-slate-500">${formatINR(avgDeal)}</td>
+          <td class="py-3 px-4 text-center text-xs font-semibold text-amber-600 dark:text-amber-400">${rating}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderRawDataTable() {
+      const filteredForSearch = filteredDataset.filter(row => {
+        if (!tableSearchQuery) return true;
+        const term = tableSearchQuery.toLowerCase();
+        return (
+          (row.Product && row.Product.toLowerCase().includes(term)) ||
+          (row.Category && row.Category.toLowerCase().includes(term)) ||
+          (row.Region && row.Region.toLowerCase().includes(term)) ||
+          (row.Salesperson && row.Salesperson.toLowerCase().includes(term)) ||
+          (row.Customer && row.Customer.toLowerCase().includes(term)) ||
+          (row.Date && row.Date.toLowerCase().includes(term))
+        );
+      });
+
+      const totalItems = filteredForSearch.length;
+      const totalPages = Math.ceil(totalItems / tablePageSize) || 1;
+      if (tableCurrentPage > totalPages) tableCurrentPage = totalPages;
+
+      const startIndex = (tableCurrentPage - 1) * tablePageSize;
+      const pagedItems = filteredForSearch.slice(startIndex, startIndex + tablePageSize);
+
+      document.getElementById('data-records-info').textContent = 
+        `Total: ${totalItems} records matching criteria`;
+      document.getElementById('pagination-info').textContent = 
+        `Page ${tableCurrentPage} of ${totalPages} (${totalItems} items)`;
+
+      document.getElementById('btn-prev-page').disabled = (tableCurrentPage <= 1);
+      document.getElementById('btn-next-page').disabled = (tableCurrentPage >= totalPages);
+
+      const tbody = document.getElementById('raw-data-tbody');
+      tbody.innerHTML = '';
+
+      if (pagedItems.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="py-6 text-center text-slate-400">No records found.</td></tr>`;
+        return;
+      }
+
+      pagedItems.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition";
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 text-slate-500 font-mono text-[11px]">${row.Date}</td>
+          <td class="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">${row.Product}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">${row.Category}</span>
+          </td>
+          <td class="py-2.5 px-3">${row.Region}</td>
+          <td class="py-2.5 px-3 text-right font-medium text-slate-900 dark:text-white">${formatINR(Number(row.Sales))}</td>
+          <td class="py-2.5 px-3 text-right">${formatNumber(Number(row.Quantity))}</td>
+          <td class="py-2.5 px-3 text-right font-medium text-emerald-600 dark:text-emerald-400">${formatINR(Number(row.Profit))}</td>
+          <td class="py-2.5 px-3">${row.Salesperson}</td>
+          <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400">${row.Customer || 'N/A'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function handleTableSearch() {
+      tableSearchQuery = document.getElementById('table-search-input').value.trim();
+      tableCurrentPage = 1;
+      renderRawDataTable();
+    }
+
+    function changePage(delta) {
+      tableCurrentPage += delta;
+      renderRawDataTable();
+    }
+
+    function setupCSVUpload() {
+      const dropZone = document.getElementById('drop-zone');
+      const fileInput = document.getElementById('csv-file-input');
+
+      // Drag over styles
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.add('border-sky-500', 'bg-sky-50/20');
+        }, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.remove('border-sky-500', 'bg-sky-50/20');
+        }, false);
+      });
+
+      // Handle drop
+      dropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+          processCSVFile(files[0]);
+        }
+      });
+
+      // Handle file input select
+      fileInput.addEventListener('change', (e) => {
+        if (fileInput.files.length > 0) {
+          processCSVFile(fileInput.files[0]);
+        }
+      });
+    }
+
+    function processCSVFile(file) {
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        showToast("Please upload a valid .csv file format.", "error");
+        return;
+      }
+
+      Papa.parse(file, {
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          if (results.data && results.data.length > 0) {
+            // Normalize & validate keys
+            const parsed = results.data.map(r => ({
+              Date: r.Date || r.date || new Date().toISOString().split('T')[0],
+              Product: r.Product || r.product || 'Unknown Item',
+              Category: r.Category || r.category || 'General',
+              Region: r.Region || r.region || 'West',
+              Sales: Number(r.Sales || r.sales || 0),
+              Quantity: Number(r.Quantity || r.quantity || 1),
+              Profit: Number(r.Profit || r.profit || 0),
+              Salesperson: r.Salesperson || r.salesperson || 'Rep',
+              Customer: r.Customer || r.customer || 'Client'
+            }));
+
+            salesDataset = parsed;
+            document.getElementById('dataset-status-text').textContent = `Uploaded: ${file.name.slice(0, 15)}...`;
+            populateDropdownFilters();
+            resetAllFilters();
+            showToast(`Loaded ${salesDataset.length} rows successfully!`, "success");
+            switchPage('dashboard');
+          } else {
+            showToast("The CSV appears to be empty or unreadable.", "error");
+          }
+        },
+        error: function(err) {
+          showToast(`Error parsing CSV: ${err.message}`, "error");
+        }
+      });
+    }
+
+    function loadSampleDataset(e) {
+      if (e) e.stopPropagation();
+      salesDataset = JSON.parse(JSON.stringify(DEFAULT_DATASET));
+      document.getElementById('dataset-status-text').textContent = "Sample Data Loaded";
+      populateDropdownFilters();
+      resetAllFilters();
+      showToast("Default realistic sample dataset restored!", "success");
+    }
+
+    function downloadSampleCSVTemplate() {
+      const csv = Papa.unparse(DEFAULT_DATASET);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "sales_performance_sample_template.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function exportCurrentDataToCSV() {
+      const csv = Papa.unparse(filteredDataset);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `sales_bi_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function showToast(message, type = "info") {
+      let toast = document.getElementById('bi-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'bi-toast';
+        toast.className = "fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center space-x-2 transition-all transform duration-300 translate-y-12 opacity-0";
+        document.body.appendChild(toast);
+      }
+
+      if (type === "success") {
+        toast.className = "fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center space-x-2 bg-emerald-600 text-white transition-all transform duration-300";
+        toast.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>${message}</span>`;
+      } else if (type === "error") {
+        toast.className = "fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center space-x-2 bg-rose-600 text-white transition-all transform duration-300";
+        toast.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> <span>${message}</span>`;
+      } else {
+        toast.className = "fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center space-x-2 bg-sky-600 text-white transition-all transform duration-300";
+        toast.innerHTML = `<i class="fa-solid fa-bell"></i> <span>${message}</span>`;
+      }
+
+      toast.classList.remove('translate-y-12', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-12', 'opacity-0');
+      }, 3500);
+    }
+
+    function switchPage(pageId) {
+      currentPage = pageId;
+
+      // Update Navigation button active styles
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.classList.remove('text-white', 'bg-sky-600', 'shadow-md', 'shadow-sky-900/40');
+        btn.classList.add('text-slate-400', 'hover:bg-slate-800', 'hover:text-white');
+      });
+      const activeNav = document.getElementById(`nav-${pageId}`);
+      if (activeNav) {
+        activeNav.classList.remove('text-slate-400', 'hover:bg-slate-800', 'hover:text-white');
+        activeNav.classList.add('text-white', 'bg-sky-600', 'shadow-md', 'shadow-sky-900/40');
+      }
+
+      // Hide all views
+      ['dashboard', 'sales-analysis', 'customer-analysis', 'salesperson-analysis', 'data-view'].forEach(view => {
+        const el = document.getElementById(`view-${view}`);
+        if (el) el.classList.add('hidden');
+      });
+
+      // Show current view
+      const activeView = document.getElementById(`view-${pageId}`);
+      if (activeView) activeView.classList.remove('hidden');
+
+      // Update Top Header Title
+      const titleMap = {
+        'dashboard': 'Sales Performance Dashboard',
+        'sales-analysis': 'Sales Deep Dive & Category Metrics',
+        'customer-analysis': 'Customer Acquisition & Value Matrix',
+        'salesperson-analysis': 'Salesperson Performance Matrix',
+        'data-view': 'Dataset Management & CSV Ingestion'
+      };
+      document.getElementById('page-title').textContent = titleMap[pageId] || 'Analytics BI';
+
+      // Re-render chart layouts to ensure proper sizing after unhiding
+      setTimeout(() => {
+        Object.values(chartInstances).forEach(chart => chart.resize());
+      }, 50);
+    }
+
+    function setupThemeToggle() {
+      const toggleBtn = document.getElementById('theme-toggle');
+      const themeIcon = document.getElementById('theme-icon');
+
+      toggleBtn.addEventListener('click', () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        if (isDark) {
+          themeIcon.classList.replace('fa-moon', 'fa-sun');
+        } else {
+          themeIcon.classList.replace('fa-sun', 'fa-moon');
+        }
+        // Redraw charts with theme appropriate font and grid colors
+        updateDashboardCharts();
+        updateSalesAnalysisView();
+        updateCustomerAnalysisView();
+        updateSalespersonView();
+      });
+    }
+
+    function setupMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const toggleBtn = document.getElementById('sidebar-toggle-btn');
+      const closeBtn = document.getElementById('sidebar-close-btn');
+
+      toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('-translate-x-full');
+      });
+      closeBtn.addEventListener('click', () => {
+        sidebar.classList.add('-translate-x-full');
+      });
+    }
+
+    window.onload = function() {
+      setupThemeToggle();
+      setupMobileSidebar();
+      setupCSVUpload();
+      populateDropdownFilters();
+      applyFilters();
+    };
+  </script>
+</body>
+</html>
